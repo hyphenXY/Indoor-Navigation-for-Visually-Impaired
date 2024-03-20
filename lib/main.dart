@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:serious_python/serious_python.dart';
+import 'package:http/http.dart' as http;
 
 import 'BluetoothOffScreen.dart';
 import 'ScanScreen.dart';
@@ -12,10 +13,6 @@ void main() {
   runApp(const FlutterBlueApp());
 }
 
-//
-// This widget shows BluetoothOffScreen or
-// ScanScreen depending on the adapter state
-//
 class FlutterBlueApp extends StatefulWidget {
   const FlutterBlueApp({super.key});
 
@@ -61,9 +58,6 @@ class _FlutterBlueAppState extends State<FlutterBlueApp> {
   }
 }
 
-//
-// This observer listens for Bluetooth Off and dismisses the DeviceScreen
-//
 class BluetoothAdapterStateObserver extends NavigatorObserver {
   StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
 
