@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:vi_app/python_runner.dart';
 
 import 'ScanResultTile.dart';
 import 'utils/snackbar.dart';
@@ -57,6 +58,11 @@ class _ScanScreenState extends State<ScanScreen> {
     }
     try {
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
+    //   make a list for all the device mac addresses and rssi values
+      List<String> deviceNames = _scanResults.map((result) => result.device.name).toList();
+    //   send it to the server
+      sendListToServer(deviceNames);
+
     } catch (e) {
       Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
           success: false);
@@ -75,15 +81,32 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  Future onRefresh() {
-    if (_isScanning == false) {
-      FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
+  Future<void> onRefresh() async {
+    if (!_isScanning) {
+      try {
+        _systemDevices = await FlutterBluePlus.systemDevices;
+      } catch (e) {
+        Snackbar.show(ABC.b, prettyException("System Devices Error:", e),
+            success: false);
+      }
+      try {
+        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
+        // Wait for 3 seconds
+        await Future.delayed(const Duration(seconds: 3));
+        // Get device names
+        List<String> deviceNames = _scanResults.map((result) => result.device.name).toList();
+        // Send the list of device names to the server
+        sendListToServer(deviceNames);
+      } catch (e) {
+        Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
+            success: false);
+      }
+      if (mounted) {
+        setState(() {});
+      }
     }
-    if (mounted) {
-      setState(() {});
-    }
-    return Future.delayed(const Duration(seconds: 3));
   }
+
 
   Widget buildScanButton(BuildContext context) {
     if (FlutterBluePlus.isScanningNow) {
