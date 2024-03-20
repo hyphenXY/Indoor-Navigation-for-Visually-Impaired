@@ -1,37 +1,36 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 
-void sendListToServer(List<dynamic> myList) async {
-  // Encode your list to JSON
-  String jsonList = jsonEncode(myList);
+void sendListToServer(List<String> deviceNames) async {
+  // Read JSON file
+  File jsonFile = File('data.json');
+  if (!jsonFile.existsSync()) {
+    print('Error: JSON file not found.');
+    return;
+  }
 
-  // Define the URL of your Flask server endpoint
-  String url = 'http://localhost:5000/';
+  // Read JSON content
+  String jsonString = jsonFile.readAsStringSync();
+  Map<String, dynamic> jsonData = json.decode(jsonString);
 
+  // Send JSON data to Flask server
+  Uri url = Uri.parse('http://192.168.47.20:5000/json'); // Replace with your server URL
   try {
-    // Make a POST request to send the list
-    final response = await http.post(
-      Uri.parse(url),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonList,
+    http.Response response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(jsonData),
     );
 
-    // Check if the request was successful
+    // Check response status
     if (response.statusCode == 200) {
-      if (kDebugMode) {
-          print('List sent successfully');
-      }
+      print('JSON data sent successfully.');
     } else {
-      if (kDebugMode) {
-        print('Failed to send list. Status code: ${response.statusCode}');
-      }
+      print('Failed to send JSON data. Status code: ${response.statusCode}');
     }
   } catch (e) {
-    if (kDebugMode) {
-      print('Error sending list: $e');
-    }
+    print('Error sending JSON data: $e');
   }
 }

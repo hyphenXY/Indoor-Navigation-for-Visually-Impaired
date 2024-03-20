@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:vi_app/python_runner.dart';
+import 'package:http/http.dart' as http;
 
 import 'ScanResultTile.dart';
 import 'utils/snackbar.dart';
@@ -58,10 +60,7 @@ class _ScanScreenState extends State<ScanScreen> {
     }
     try {
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
-    //   make a list for all the device mac addresses and rssi values
-      List<String> deviceNames = _scanResults.map((result) => result.device.name).toList();
-    //   send it to the server
-      sendListToServer(deviceNames);
+      await _sendDataToServer();
 
     } catch (e) {
       Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
@@ -91,12 +90,6 @@ class _ScanScreenState extends State<ScanScreen> {
       }
       try {
         await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
-        // Wait for 3 seconds
-        await Future.delayed(const Duration(seconds: 3));
-        // Get device names
-        List<String> deviceNames = _scanResults.map((result) => result.device.name).toList();
-        // Send the list of device names to the server
-        sendListToServer(deviceNames);
       } catch (e) {
         Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
             success: false);
@@ -150,5 +143,42 @@ class _ScanScreenState extends State<ScanScreen> {
         floatingActionButton: buildScanButton(context),
       ),
     );
+  }
+
+  Future<void> _sendDataToServer() async {
+    List<Map<String, dynamic>> devicesData = [];
+
+    for (var result in _scanResults) {
+      devicesData.add({
+        'mac': result.device.remoteId.str,
+        'rssi': result.rssi.toString(),
+      });
+    }
+
+    final jsonData = jsonEncode(devicesData);
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.47.20:5000/json'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonData,
+      );
+
+      if (response.statusCode == 200) {
+        if (kDebugMode) {
+          print('Data sent successfully');
+        }
+      } else {
+        throw Exception('Failed to send data: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending data: $e');
+      }
+      Snackbar.show(ABC.b, prettyException("Send Data Error:", e),
+          success: false);
+    }
   }
 }
