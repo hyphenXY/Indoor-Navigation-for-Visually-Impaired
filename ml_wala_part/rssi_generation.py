@@ -12,45 +12,54 @@ from sklearn.model_selection import train_test_split
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C,WhiteKernel , RationalQuadratic ,ExpSineSquared
+from sklearn.gaussian_process.kernels import (
+    RBF,
+    ConstantKernel as C,
+    WhiteKernel,
+    RationalQuadratic,
+    ExpSineSquared,
+)
+
 # get_ipython().run_line_magic('matplotlib', 'notebook')
+
 
 def testAndTrainData(df1, df2):
     #######training points######
-    tmp1= df1['location'].to_numpy()
-    y1= df1['rssi_mean']
-    y_train= y1.to_numpy() # rssi traing data
+    tmp1 = df1["location"].to_numpy()
+    y1 = df1["rssi_mean"]
+    y_train = y1.to_numpy()  # rssi traing data
     X1 = []
     for i in tmp1:
-        t =list(map(int, i.split(",")))
+        t = list(map(int, i.split(",")))
         X1.append(t)
     X_train = np.array(X1)
     # print(X_train) # training location
     #######testing points#######
-    tmp2= df2['location'].to_numpy()
-    y2= df2['rssi_mean']
+    tmp2 = df2["location"].to_numpy()
+    y2 = df2["rssi_mean"]
     y_test = y2.to_numpy()
     X2 = []
     for i in tmp2:
-        t =list(map(int, i.split(",")))
+        t = list(map(int, i.split(",")))
         X2.append(t)
     X_test = np.array(X2)
 
-    return X_train,y_train,X_test,y_test
+    return X_train, y_train, X_test, y_test
+
 
 ####### kernal used in Gaussian Process Regression #######
 def hybridGPKernal():
-    long_term_trend_kernel = 50.0 ** 2 * RBF(length_scale=50.0)
+    long_term_trend_kernel = 50.0**2 * RBF(length_scale=50.0)
     seasonal_kernel = (
-        2.0 ** 2
+        2.0**2
         * RBF(length_scale=100.0)
         * ExpSineSquared(length_scale=1.0, periodicity=1.0, periodicity_bounds="fixed")
     )
 
-    irregularities_kernel = 0.5 ** 2 * RationalQuadratic(length_scale=1.0, alpha=1.0)
+    irregularities_kernel = 0.5**2 * RationalQuadratic(length_scale=1.0, alpha=1.0)
 
-    noise_kernel = 0.1 ** 2 * RBF(length_scale=0.1) + WhiteKernel(
-        noise_level=0.1 ** 2, noise_level_bounds=(1e-5, 1e5)
+    noise_kernel = 0.1**2 * RBF(length_scale=0.1) + WhiteKernel(
+        noise_level=0.1**2, noise_level_bounds=(1e-5, 1e5)
     )
 
     rssi_kernel = (
@@ -58,41 +67,71 @@ def hybridGPKernal():
     )
 
     return rssi_kernel
+
+
 ########### Genrating likelihood RSSI data-set for each beacon  ##########
-floor = 'Ground'
-folder_path = floor+'/beacons_gt/'
+floor = "Ground"
+folder_path = floor + "/beacons_gt/"
 
-test_location_third = ["50,33","54,38","40,44","47,52","94,58","33,57", "74,55", "72,76","89,41",
-                          "108,32","92,25","149,23","142,72"]
-test_location_ground = ["134,99","25,80","49,80","36,59","63,92","76,80","47,78","93,78","119,80","116,53",
-                        "144,66","144,84","165,97"]
+test_location_third = [
+    "50,33",
+    "54,38",
+    "40,44",
+    "47,52",
+    "94,58",
+    "33,57",
+    "74,55",
+    "72,76",
+    "89,41",
+    "108,32",
+    "92,25",
+    "149,23",
+    "142,72",
+]
+test_location_ground = [
+    "134,99",
+    "25,80",
+    "49,80",
+    "36,59",
+    "63,92",
+    "76,80",
+    "47,78",
+    "93,78",
+    "119,80",
+    "116,53",
+    "144,66",
+    "144,84",
+    "165,97",
+]
 
-if floor == 'Ground':
+if floor == "Ground":
     test_location = test_location_ground
 else:
     test_location = test_location_third
 
 for filename in os.listdir(folder_path):
     print(filename)
-    if filename.endswith('.csv'):
-        df = pd.read_csv(folder_path+filename)
-        v = filename.split('.csv')[0]
+    if filename.endswith(".csv"):
+        df = pd.read_csv(folder_path + filename)
+        v = filename.split(".csv")[0]
         # print(v,filename)
 
-    df1 = df.loc[~df['location'].isin(test_location)]
-    df2 = df.loc[df['location'].isin(test_location)]
-    df2 = df2.sort_values(by=['location'])
+    df1 = df.loc[~df["location"].isin(test_location)]
+    df2 = df.loc[df["location"].isin(test_location)]
+    df2 = df2.sort_values(by=["location"])
 
     X_train, y_train, X_test, y_test = testAndTrainData(df1, df2)
-    x1 = np.linspace(1,188,188).astype(int) #p
-    x2 = np.linspace(1,130,130).astype(int) #q
+    x1 = np.linspace(1, 188, 188).astype(int)  # p
+    x2 = np.linspace(1, 130, 130).astype(int)  # q
     # print("Training data==================", X_train, y_train)
     # print("Testing data==================", X_test, y_test)
     # Gaussian (or RBF kernal) kernal
-    kernel = C(1.0, (1e-1, 1e1)) * RBF([1,1], (1e-2, 1e2))
+    kernel = C(1.0, (1e-1, 1e1)) * RBF([1, 1], (1e-2, 1e2))
     #### Trained with Hybrid Kernal
     rssi_kernel = hybridGPKernal()
-    gp = GaussianProcessRegressor(kernel=rssi_kernel, n_restarts_optimizer=10,normalize_y=False)
+    gp = GaussianProcessRegressor(
+        kernel=rssi_kernel, n_restarts_optimizer=10, normalize_y=False
+    )
 
     #### Trained with Gaussian (or RBF kernal) kernal
     # gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5,normalize_y=False)
@@ -107,20 +146,26 @@ for filename in os.listdir(folder_path):
 
     ####### RSSI mean and standard deviation prediction for input space ########
     data = []
-    Zp_mean=[]
-    Zp_std =[]
+    Zp_mean = []
+    Zp_std = []
     # temp_a =[]
     for i in range(X0p.shape[0]):
         tmp_mean = []
         tmp_std = []
         for j in range(X1p.shape[1]):
-            a = gp.predict([(X0p[i,j] ,X1p[i,j])],return_std=True)
+            a = gp.predict([(X0p[i, j], X1p[i, j])], return_std=True)
             # temp_a.append(a[0][0])
             # print((X0p[i,j] ,X1p[i,j]), a[0][0])
             # if not((X0p[i,j]>=47 and X0p[i,j]<=63 and X1p[i,j]>=54 and X1p[i,j]<=63) or ((X0p[i,j]<=36 or X0p[i,j]>=75) and X1p[i,j]>=54)) :
-            data.append([str(X0p[i,j])+','+str(X1p[i,j]) , round(a[0][0],2), round(a[1][0],2)])
-            tmp_mean.append(round(a[0][0],2))
-            tmp_std.append(round(a[1][0],2))
+            data.append(
+                [
+                    str(X0p[i, j]) + "," + str(X1p[i, j]),
+                    round(a[0][0], 2),
+                    round(a[1][0], 2),
+                ]
+            )
+            tmp_mean.append(round(a[0][0], 2))
+            tmp_std.append(round(a[1][0], 2))
         Zp_mean.append(tmp_mean)
         Zp_std.append(tmp_std)
 
@@ -135,26 +180,25 @@ for filename in os.listdir(folder_path):
     Zp_std = Zp_std.T
     # print(Zp_std)
 
-
     ######## Likelihood RSSI data-set generated for each beacon ###########
-    df1 = pd.DataFrame(data, columns=["location","rssi_mean", "rssi_std"])
+    df1 = pd.DataFrame(data, columns=["location", "rssi_mean", "rssi_std"])
     # df1.to_csv('pd/'+'GP_HBD_'+v[0], index=False)
-    df1.to_csv('Ground/beacons_pd/'+v+'.csv', index=False)
+    df1.to_csv("Ground/beacons_pd/" + v + ".csv", index=False)
     # print(df1.shape)
 
     ##### mean_absolute_error on testing point #####
     # print(X_test)
     y_pred, std = gp.predict(X_test, return_std=True)
-    y_pred = np.round_(y_pred, decimals = 2)
+    y_pred = np.round_(y_pred, decimals=2)
     # print(y_pred)
-    std = np.round_(std, decimals = 2)
+    std = np.round_(std, decimals=2)
     # print("X_test\n", X_test)
     # print("y_test\n", y_test)
     # print("y_pred mean\n",np.round_(y_pred,2),"\nstd dev\n",std)
 
     ################################################
-    MAE = mean_absolute_error(y_pred,y_test)
-    print(" mean_absolute_error_ground :\t",round(MAE,2))
+    MAE = mean_absolute_error(y_pred, y_test)
+    print(" mean_absolute_error_ground :\t", round(MAE, 2))
 
     ################ plot functions  #####################
     x = X0p.ravel()
@@ -186,7 +230,7 @@ for filename in os.listdir(folder_path):
     # plt.close()
 
 
-'''
+"""
 #############################################################################################
 # X = [",".join(item) for item in X_test.astype(str)]
 # print("X\n",X)
@@ -239,4 +283,4 @@ for filename in os.listdir(folder_path):
 
 
 
-'''
+"""
