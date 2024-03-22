@@ -16,9 +16,6 @@ def upload_data():
     global count
     data = request.json  # Assuming data is sent as JSON
     print((data))
-    # convert data to list
-    # get mac from json
-    # get rssi from json
 
     mac_address = []
     for i in range(len(data)):
@@ -41,7 +38,8 @@ def upload_data():
         fieldnames = ["MAC Address", "RSSI"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerow({"MAC Address": mac_address, "RSSI": rssi})
+        for i in range(len(data)):
+            writer.writerow({"MAC Address": mac_address[i], "RSSI": rssi[i]})
 
     return jsonify({"message": "Data received and saved successfully"})
 
