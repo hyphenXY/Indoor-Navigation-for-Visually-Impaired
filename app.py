@@ -29,11 +29,11 @@ def upload_data():
         rssi.append(data[i]["rssi"])
 
     # Create directory if it doesn't exist
-    if not os.path.exists("all_gt"):
-        os.makedirs("all_gt")
+    if not os.path.exists("Project/ground/all_gt"):
+        os.makedirs("Project/ground/all_gt")
 
     # Generate filename with incremented index
-    filename = f"all_gt/data_{count}.csv"
+    filename = f"Project/ground/all_gt/data_{count}.csv"
     count += 1
 
     # Write data to CSV file
