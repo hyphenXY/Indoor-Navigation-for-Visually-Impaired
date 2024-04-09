@@ -1,210 +1,187 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:http/http.dart' as http;
 
-class ScanResultTile extends StatefulWidget {
-  const ScanResultTile({super.key, required this.result, this.onTap});
+import 'ScanResultTile.dart';
+import 'utils/snackbar.dart';
 
-  final ScanResult result;
-  final VoidCallback? onTap;
+class ScanScreen extends StatefulWidget {
+  const ScanScreen({super.key});
 
   @override
-  State<ScanResultTile> createState() => _ScanResultTileState();
+  State<ScanScreen> createState() => _ScanScreenState();
 }
 
-class _ScanResultTileState extends State<ScanResultTile> {
-  BluetoothConnectionState _connectionState =
-      BluetoothConnectionState.disconnected;
-
-  late StreamSubscription<BluetoothConnectionState>
-      _connectionStateSubscription;
+class _ScanScreenState extends State<ScanScreen> {
+  final List<BluetoothDevice> _systemDevices = [];
+  List<ScanResult> _scanResults = [];
+  bool _isScanning = false;
+  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
+  late StreamSubscription<bool> _isScanningSubscription;
 
   @override
   void initState() {
     super.initState();
 
-    _connectionStateSubscription =
-        widget.result.device.connectionState.listen((state) {
-      _connectionState = state;
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _scanResultsSubscription =
+        FlutterBluePlus.scanResults.listen((results) {
+          _scanResults = results;
+          if (mounted) {
+            setState(() {});
+          }
+        }, onError: (e) {
+          Snackbar.show(ABC.b, prettyException("Scan Error:", e), success: false);
+        });
+
+    _isScanningSubscription =
+        FlutterBluePlus.isScanning.listen((state) {
+          _isScanning = state;
+          if (mounted) {
+            setState(() {});
+          }
+        });
   }
 
   @override
   void dispose() {
-    _connectionStateSubscription.cancel();
+    _scanResultsSubscription.cancel();
+    _isScanningSubscription.cancel();
     super.dispose();
   }
 
-  bool get isConnected {
-    return _connectionState == BluetoothConnectionState.connected;
-  }
-
-  Widget _buildTitle(BuildContext context) {
-    if (widget.result.device.platformName.isNotEmpty) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            widget.result.device.platformName,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            widget.result.device.remoteId.str,
-            style: Theme.of(context).textTheme.bodySmall,
-          )
-        ],
-      );
-    } else {
-      return Text(widget.result.device.remoteId.str);
+  void startScan() {
+    if (!_isScanning) {
+      try {
+        FlutterBluePlus.startScan(timeout: null);
+      } catch (e) {
+        Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
+            success: false);
+      }
+      setState(() {
+        _isScanning = true;
+      });
     }
   }
 
-  Widget _buildAdvRow(BuildContext context, String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(title, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(
-            width: 12.0,
+  void stopScan() {
+    if (_isScanning) {
+      try {
+        FlutterBluePlus.stopScan();
+      } catch (e) {
+        Snackbar.show(ABC.b, prettyException("Stop Scan Error:", e),
+            success: false);
+      }
+      setState(() {
+        _isScanning = false;
+      });
+    }
+  }
+
+  void sendDataToServer() async {
+    if (_scanResults.isNotEmpty) {
+      await _sendDataToServer();
+    }
+  }
+
+  Future<void> refreshAndStartScan() async {
+    startScan();
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaffoldMessenger(
+      key: Snackbar.snackBarKeyB,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Find Devices'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: refreshAndStartScan,
+          child: ListView(
+            children: <Widget>[
+              ..._buildScanResultTiles(context),
+            ],
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.apply(color: Colors.black),
-              softWrap: true,
+        ),
+        floatingActionButton: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              onPressed: startScan,
+              backgroundColor: Colors.blue,
+              tooltip: 'Scan Start',
+              child: const Icon(Icons.bluetooth_searching),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            FloatingActionButton(
+              onPressed: stopScan,
+              backgroundColor: Colors.red,
+              tooltip: 'Scan Stop',
+              child: const Icon(Icons.stop),
+            ),
+            const SizedBox(height: 10),
+            FloatingActionButton(
+              onPressed: sendDataToServer,
+              backgroundColor: Colors.green,
+              tooltip: 'Send to Server',
+              child: const Icon(Icons.send),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // var adv = widget.result.advertisementData;
-    return ExpansionTile(
-      title: _buildTitle(context),
-      leading: Text(widget.result.rssi.toString()),
-      children: <Widget>[
-        _buildAdvRow(context, "MAC Address", widget.result.device.remoteId.str),
-        _buildAdvRow(context, "RSSI", widget.result.rssi.toString()),
-      ]
-    );
+  List<Widget> _buildScanResultTiles(BuildContext context) {
+    return _scanResults
+        .map(
+          (r) => ScanResultTile(
+        result: r,
+      ),
+    )
+        .toList();
+  }
+
+  Future<void> _sendDataToServer() async {
+    List<Map<String, dynamic>> devicesData = [];
+
+    for (var result in _scanResults) {
+      devicesData.add({
+        'mac': result.device.remoteId.str,
+        'rssi': result.rssi.toString(),
+      });
+    }
+
+    final jsonData = jsonEncode(devicesData);
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.47.20:5000/json'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonData,
+      );
+
+      if (response.statusCode == 200) {
+        if (kDebugMode) {
+          print('Data sent successfully');
+        }
+      } else {
+        throw Exception('Failed to send data: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending data: $e');
+      }
+      Snackbar.show(ABC.b, prettyException("Send Data Error:", e),
+          success: false);
+    }
   }
 }
-//
-//
-// import 'dart:async';
-//
-// import 'package:flutter/material.dart';
-// import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-//
-// class ScanResultTile extends StatefulWidget {
-//   const ScanResultTile({super.key, required this.result, this.onTap});
-//
-//   final ScanResult result;
-//   final VoidCallback? onTap;
-//
-//   @override
-//   State<ScanResultTile> createState() => _ScanResultTileState();
-// }
-//
-// class _ScanResultTileState extends State<ScanResultTile> {
-//   BluetoothConnectionState _connectionState =
-//       BluetoothConnectionState.disconnected;
-//
-//   late StreamSubscription<BluetoothConnectionState>
-//   _connectionStateSubscription;
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//
-//     _connectionStateSubscription =
-//         widget.result.device.connectionState.listen((state) {
-//           _connectionState = state;
-//           if (mounted) {
-//             setState(() {});
-//           }
-//         });
-//   }
-//
-//   @override
-//   void dispose() {
-//     _connectionStateSubscription.cancel();
-//     super.dispose();
-//   }
-//
-//   bool get isConnected {
-//     return _connectionState == BluetoothConnectionState.connected;
-//   }
-//
-//   Widget _buildTitle(BuildContext context) {
-//     if (widget.result.device.platformName.isNotEmpty) {
-//       return Column(
-//         mainAxisAlignment: MainAxisAlignment.start,
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: <Widget>[
-//           Text(
-//             widget.result.device.platformName,
-//             overflow: TextOverflow.ellipsis,
-//           ),
-//           Text(
-//             widget.result.device.remoteId.str,
-//             style: Theme.of(context).textTheme.bodySmall,
-//           )
-//         ],
-//       );
-//     } else {
-//       return Text(widget.result.device.remoteId.str);
-//     }
-//   }
-//
-//   Widget _buildAdvRow(BuildContext context, String title, String value) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-//       child: Row(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: <Widget>[
-//           Text(title, style: Theme.of(context).textTheme.bodySmall),
-//           const SizedBox(
-//             width: 12.0,
-//           ),
-//           Expanded(
-//             child: Text(
-//               value,
-//               style: Theme.of(context)
-//                   .textTheme
-//                   .bodySmall
-//                   ?.apply(color: Colors.black),
-//               softWrap: true,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     // var adv = widget.result.advertisementData;
-//     return ExpansionTile(
-//         title: _buildTitle(context),
-//         leading: Text(widget.result.rssi.toString()),
-//         children: <Widget>[
-//           _buildAdvRow(context, "MAC Address", widget.result.device.remoteId.str),
-//           _buildAdvRow(context, "RSSI", widget.result.rssi.toString()),
-//         ]
-//     );
-//   }
-// }
