@@ -18,7 +18,7 @@ class _ScanResultTileState extends State<ScanResultTile> {
       BluetoothConnectionState.disconnected;
 
   late StreamSubscription<BluetoothConnectionState>
-      _connectionStateSubscription;
+  _connectionStateSubscription;
 
   @override
   void initState() {
@@ -26,11 +26,11 @@ class _ScanResultTileState extends State<ScanResultTile> {
 
     _connectionStateSubscription =
         widget.result.device.connectionState.listen((state) {
-      _connectionState = state;
-      if (mounted) {
-        setState(() {});
-      }
-    });
+          _connectionState = state;
+          if (mounted) {
+            setState(() {});
+          }
+        });
   }
 
   @override
@@ -93,12 +93,12 @@ class _ScanResultTileState extends State<ScanResultTile> {
   Widget build(BuildContext context) {
     // var adv = widget.result.advertisementData;
     return ExpansionTile(
-      title: _buildTitle(context),
-      leading: Text(widget.result.rssi.toString()),
-      children: <Widget>[
-        _buildAdvRow(context, "MAC Address", widget.result.device.remoteId.str),
-        _buildAdvRow(context, "RSSI", widget.result.rssi.toString()),
-      ]
+        title: _buildTitle(context),
+        leading: Text(widget.result.rssi.toString()),
+        children: <Widget>[
+          _buildAdvRow(context, "MAC Address", widget.result.device.remoteId.str),
+          _buildAdvRow(context, "RSSI", widget.result.rssi.toString()),
+        ]
     );
   }
 }

@@ -17,7 +17,7 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  List<BluetoothDevice> _systemDevices = [];
+  final List<BluetoothDevice> _systemDevices = [];
   List<ScanResult> _scanResults = [];
   bool _isScanning = false;
   late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
@@ -27,21 +27,23 @@ class _ScanScreenState extends State<ScanScreen> {
   void initState() {
     super.initState();
 
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      _scanResults = results;
-      if (mounted) {
-        setState(() {});
-      }
-    }, onError: (e) {
-      Snackbar.show(ABC.b, prettyException("Scan Error:", e), success: false);
-    });
+    _scanResultsSubscription =
+        FlutterBluePlus.scanResults.listen((results) {
+          _scanResults = results;
+          if (mounted) {
+            setState(() {});
+          }
+        }, onError: (e) {
+          Snackbar.show(ABC.b, prettyException("Scan Error:", e), success: false);
+        });
 
-    _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
-      _isScanning = state;
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _isScanningSubscription =
+        FlutterBluePlus.isScanning.listen((state) {
+          _isScanning = state;
+          if (mounted) {
+            setState(() {});
+          }
+        });
   }
 
   @override
@@ -51,78 +53,44 @@ class _ScanScreenState extends State<ScanScreen> {
     super.dispose();
   }
 
-  Future onScanPressed() async {
-    try {
-      _systemDevices = await FlutterBluePlus.systemDevices;
-    } catch (e) {
-      Snackbar.show(ABC.b, prettyException("System Devices Error:", e),
-          success: false);
-    }
-    try {
-      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
-      await _sendDataToServer();
-
-    } catch (e) {
-      Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
-          success: false);
-    }
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future onStopPressed() async {
-    try {
-      FlutterBluePlus.stopScan();
-    } catch (e) {
-      Snackbar.show(ABC.b, prettyException("Stop Scan Error:", e),
-          success: false);
-    }
-  }
-
-  Future<void> onRefresh() async {
+  void startScan() {
     if (!_isScanning) {
       try {
-        _systemDevices = await FlutterBluePlus.systemDevices;
-      } catch (e) {
-        Snackbar.show(ABC.b, prettyException("System Devices Error:", e),
-            success: false);
-      }
-      try {
-        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 3));
+        FlutterBluePlus.startScan(timeout: null);
       } catch (e) {
         Snackbar.show(ABC.b, prettyException("Start Scan Error:", e),
             success: false);
       }
-      if (mounted) {
-        setState(() {});
+      setState(() {
+        _isScanning = true;
+      });
+    }
+  }
+
+  void stopScan() {
+    if (_isScanning) {
+      try {
+        FlutterBluePlus.stopScan();
+      } catch (e) {
+        Snackbar.show(ABC.b, prettyException("Stop Scan Error:", e),
+            success: false);
       }
+      setState(() {
+        _isScanning = false;
+      });
     }
   }
 
-
-  Widget buildScanButton(BuildContext context) {
-    if (FlutterBluePlus.isScanningNow) {
-      return FloatingActionButton(
-        onPressed: onStopPressed,
-        backgroundColor: Colors.red,
-        child: const Icon(Icons.stop),
-      );
-    } else {
-      return FloatingActionButton(
-          onPressed: onScanPressed, child: const Text("SCAN"));
+  void sendDataToServer() async {
+    if (_scanResults.isNotEmpty) {
+      await _sendDataToServer();
     }
   }
 
-  List<Widget> _buildScanResultTiles(BuildContext context) {
-    return _scanResults
-        .map(
-          (r) => ScanResultTile(
-            result: r,
-          ),
-        )
-        .toList();
+  Future<void> refreshAndStartScan() async {
+    startScan();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -133,16 +101,51 @@ class _ScanScreenState extends State<ScanScreen> {
           title: const Text('Find Devices'),
         ),
         body: RefreshIndicator(
-          onRefresh: onRefresh,
+          onRefresh: refreshAndStartScan,
           child: ListView(
             children: <Widget>[
               ..._buildScanResultTiles(context),
             ],
           ),
         ),
-        floatingActionButton: buildScanButton(context),
+        floatingActionButton: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              onPressed: startScan,
+              backgroundColor: Colors.blue,
+              tooltip: 'Scan Start',
+              child: const Icon(Icons.bluetooth_searching),
+            ),
+            const SizedBox(height: 10),
+            FloatingActionButton(
+              onPressed: stopScan,
+              backgroundColor: Colors.red,
+              tooltip: 'Scan Stop',
+              child: const Icon(Icons.stop),
+            ),
+            const SizedBox(height: 10),
+            FloatingActionButton(
+              onPressed: sendDataToServer,
+              backgroundColor: Colors.green,
+              tooltip: 'Send to Server',
+              child: const Icon(Icons.send),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  List<Widget> _buildScanResultTiles(BuildContext context) {
+    return _scanResults
+        .map(
+          (r) => ScanResultTile(
+        result: r,
+      ),
+    )
+        .toList();
   }
 
   Future<void> _sendDataToServer() async {
