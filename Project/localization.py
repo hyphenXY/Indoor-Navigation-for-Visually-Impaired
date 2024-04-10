@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 from IPython.display import display
 from itertools import product
@@ -22,7 +21,6 @@ from sklearn.gaussian_process.kernels import (
 )
 
 # from sklearn.impute import SimpleImputer
-
 
 # %matplotlib notebook
 
@@ -110,7 +108,9 @@ def GPPredictedData(directory_pd, num_files):
 def knnXaxis(X_train, y1_train, X_test, y1_test, y1_gt):
     print("---------KNN training for X-axis result---------")
     # print(X_test, y1_test)
-    knn_classifier = KNeighborsClassifier(n_neighbors=3)      ########## (USE HIST GRADIENT BOOSTING)
+    knn_classifier = KNeighborsClassifier(
+        n_neighbors=3
+    )  ########## (USE HIST GRADIENT BOOSTING)
     # print(X_train, y1_train)
     knn_classifier.fit(X_train, y1_train.values.ravel())
     # test using GP predicted test dataset
@@ -315,7 +315,7 @@ def rfLocalizationPredictedData(y1_test, y2_test, X_test, y1_pred, y2_pred):
         "Localziation_mse_rf_pd_predicted",
         np.mean(result["dist_localization_error_pd"]),
     )
-    result.to_csv("Project/ground/results/rf_result_pd_predicted.csv", index=False)
+    result.to_csv("vi_app_python/Project/ground/results/rf_result_pd_predicted.csv", index=False)
 
     return np.mean(result["dist_localization_error_pd"])
 
@@ -351,13 +351,13 @@ def rfLocalizationGroundTruthData(y1_gt, y2_gt, X_gt, y1_pred_gt, y2_pred_gt):
         "Localziation_mse_rf_gt_predicted",
         np.mean(result["dist_localization_error_gt"]),
     )
-    result.to_csv("Project/ground/results/rf_result_gt_predicted.csv", index=False)
+    result.to_csv("vi_app_python/Project/ground/results/rf_result_gt_predicted.csv", index=False)
 
     return np.mean(result["dist_localization_error_gt"])
 
 
 # floor = "Third"
-floor = "Project/ground"
+floor = "vi_app_python/Project/ground"
 path_1 = floor + "/beacons_gt/"
 
 test_location_third = [
@@ -391,14 +391,19 @@ test_location_ground = [
 ]
 
 num_files = len(os.listdir(path_1)) + 1  # Count the number of files
-if floor == "Project/ground":
+if floor == "vi_app_python/Project/ground":
     test_location = test_location_ground
 else:
     test_location = test_location_third
 
 # print(test_location)
 X_gt, y1_gt, y2_gt = GroundTruthData(path_1, floor, test_location, num_files)
+X_gt.fillna(-95, inplace=True)
+y1_gt.fillna(-95, inplace=True)
+
+
 # print(X_gt)
+
 path_2 = floor + "/beacons_pd/"
 num_files = len(os.listdir(path_2)) + 1  # Count the number of files
 X_pd, y1_pd, y2_pd = GPPredictedData(path_2, num_files)
@@ -412,9 +417,9 @@ X_pd, y1_pd, y2_pd = GPPredictedData(path_2, num_files)
 # print("y2_pd", y2_pd)
 
 
-X_pd.fillna(0, inplace=True)
-y1_pd.fillna(0, inplace=True)
-y2_pd.fillna(0, inplace=True)
+X_pd.fillna(-999, inplace=True)
+y1_pd.fillna(-999, inplace=True)
+y2_pd.fillna(-999, inplace=True)
 
 # #### Split the data set for training and testing ###########
 X_train, X_test, y1_train, y1_test = train_test_split(
@@ -458,11 +463,15 @@ mse_knn_gt = knnLocalizationGroundTruthData(
     y1_gt, y2_gt, X_gt, y1_pred_gt, y2_pred_gt, path_4
 )
 
-MAE5, MAE6, y1_pred, y1_pred_gt  = rfXaxis(X_train,y1_train, X_test,y1_test, X_gt, y1_gt)
-MAE7, MAE8, y2_pred, y2_pred_gt =  rfYaxis(X_train, y2_train, X_test, y2_test, X_gt, y2_gt)
-print("---------RF Localization performance evaluatiion ---------" )
-mse_rf_pd = rfLocalizationPredictedData(y1_test, y2_test,X_test,y1_pred,y2_pred)
-mse_rf_gt = rfLocalizationGroundTruthData(y1_gt, y2_gt,X_gt, y1_pred_gt,y2_pred_gt)
+MAE5, MAE6, y1_pred, y1_pred_gt = rfXaxis(
+    X_train, y1_train, X_test, y1_test, X_gt, y1_gt
+)
+MAE7, MAE8, y2_pred, y2_pred_gt = rfYaxis(
+    X_train, y2_train, X_test, y2_test, X_gt, y2_gt
+)
+print("---------RF Localization performance evaluatiion ---------")
+mse_rf_pd = rfLocalizationPredictedData(y1_test, y2_test, X_test, y1_pred, y2_pred)
+mse_rf_gt = rfLocalizationGroundTruthData(y1_gt, y2_gt, X_gt, y1_pred_gt, y2_pred_gt)
 
 
 #################################################################
