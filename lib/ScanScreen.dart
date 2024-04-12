@@ -99,6 +99,7 @@ class _ScanScreenState extends State<ScanScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Find Devices'),
+          backgroundColor: Colors.purple.shade300,
         ),
         body: RefreshIndicator(
           onRefresh: refreshAndStartScan,
@@ -114,21 +115,21 @@ class _ScanScreenState extends State<ScanScreen> {
           children: [
             FloatingActionButton(
               onPressed: startScan,
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.green.shade400,
               tooltip: 'Scan Start',
               child: const Icon(Icons.bluetooth_searching),
             ),
             const SizedBox(height: 10),
             FloatingActionButton(
               onPressed: stopScan,
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.red.shade500,
               tooltip: 'Scan Stop',
               child: const Icon(Icons.stop),
             ),
             const SizedBox(height: 10),
             FloatingActionButton(
               onPressed: sendDataToServer,
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.amber.shade300,
               tooltip: 'Send to Server',
               child: const Icon(Icons.send),
             ),
